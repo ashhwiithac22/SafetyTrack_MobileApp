@@ -1,3 +1,4 @@
+//DashboardActivity.java
 package com.safetytrack;
 
 import androidx.appcompat.widget.SwitchCompat;
@@ -97,7 +98,7 @@ public class DashboardActivity extends AppCompatActivity {
     private List<Contact> emergencyContacts = new ArrayList<>();
     private List<String> emergencyPhoneNumbers = new ArrayList<>();
     private Handler handler = new Handler(Looper.getMainLooper());
-    private SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a", Locale.getDefault());
+    private SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a, dd MMM", Locale.getDefault());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -247,7 +248,7 @@ public class DashboardActivity extends AppCompatActivity {
             requestLocationPermission();
         }
         if (!checkSmsPermission()) {
-            // SMS permission will be requested when needed
+            requestSmsPermission();
         }
         if (!checkNotificationPermission()) {
             requestNotificationPermission();
@@ -287,7 +288,6 @@ public class DashboardActivity extends AppCompatActivity {
         tvUserName.setText("Welcome, " + userName);
     }
 
-    // ✅ FIXED: Properly loads contacts and selected state from Firestore
     private void loadEmergencyContactsFromFirestore() {
         progressBar.setVisibility(View.VISIBLE);
         Log.d(TAG, "Loading contacts from Firestore...");
@@ -299,11 +299,9 @@ public class DashboardActivity extends AppCompatActivity {
                 emergencyContacts.clear();
                 emergencyPhoneNumbers.clear();
 
-                // Store ALL contacts, not just selected ones
                 emergencyContacts.addAll(contacts);
                 Log.d(TAG, "Total contacts loaded from Firestore: " + contacts.size());
 
-                // Build phone numbers list ONLY from selected contacts
                 int selectedCount = 0;
                 for (Contact contact : contacts) {
                     if (contact.isSelected()) {
@@ -320,10 +318,6 @@ public class DashboardActivity extends AppCompatActivity {
                 saveContactsToPreferences();
 
                 Log.d(TAG, "Loaded " + emergencyPhoneNumbers.size() + " selected emergency contacts out of " + contacts.size() + " total");
-
-                // Show contact count in UI
-                Toast.makeText(DashboardActivity.this,
-                        "Contacts: " + selectedCount + " selected", Toast.LENGTH_SHORT).show();
             }
 
             @Override
@@ -331,9 +325,6 @@ public class DashboardActivity extends AppCompatActivity {
                 progressBar.setVisibility(View.GONE);
                 Log.e(TAG, "Error loading contacts from Firestore: " + error);
                 loadEmergencyContactsFromPreferences();
-
-                Toast.makeText(DashboardActivity.this,
-                        "Using local contacts: " + emergencyPhoneNumbers.size(), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -402,6 +393,7 @@ public class DashboardActivity extends AppCompatActivity {
                     updateLocationUI(location);
 
                     if (isTracking && !emergencyPhoneNumbers.isEmpty()) {
+                        // This is for manual updates, service handles automatic 2-minute updates
                         sendLocationToContacts(location);
                     }
 
@@ -484,7 +476,7 @@ public class DashboardActivity extends AppCompatActivity {
         return "https://maps.google.com/?q=" + location.getLatitude() + "," + location.getLongitude();
     }
 
-    // ========== JOURNEY TRACKING ==========
+    // ========== JOURNEY TRACKING - PURE SMS, NO WHATSAPP ==========
 
     private void toggleJourneyTracking() {
         if (!isLocationEnabled()) {
@@ -498,7 +490,6 @@ public class DashboardActivity extends AppCompatActivity {
         }
 
         if (!isTracking) {
-            // ✅ FIXED: Check if contacts are selected
             if (emergencyPhoneNumbers.isEmpty()) {
                 showNoContactsDialog();
                 return;
@@ -521,13 +512,13 @@ public class DashboardActivity extends AppCompatActivity {
         cardStatus.setStrokeColor(ContextCompat.getColorStateList(this, R.color.success_green));
         cardStatus.setStrokeWidth(2);
 
+        // Send immediate location
         getCurrentLocation(new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
                 Location location = locationResult.getLastLocation();
                 if (location != null) {
                     lastLocation = location;
-                    // ✅ Send location immediately when journey starts
                     if (!emergencyPhoneNumbers.isEmpty()) {
                         sendLocationToContacts(location);
                     }
@@ -537,14 +528,14 @@ public class DashboardActivity extends AppCompatActivity {
             }
         });
 
-        startLocationUpdates();
+        // ✅ START FOREGROUND SERVICE WITH 2-MINUTE REPEATING SMS TASK
+        startLocationService();
 
         if (switchAutoTrack.isChecked()) {
             journeyDetector.startDetection();
         }
 
-        startLocationService();
-        Toast.makeText(this, "Journey started", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "🚗 Journey started - SMS location every 2 minutes", Toast.LENGTH_LONG).show();
     }
 
     private void stopJourneyTracking() {
@@ -560,6 +551,8 @@ public class DashboardActivity extends AppCompatActivity {
 
         stopLocationUpdates();
         journeyDetector.stopDetection();
+
+        // ✅ STOP FOREGROUND SERVICE
         stopLocationService();
 
         if (journeyStartTime > 0) {
@@ -573,63 +566,87 @@ public class DashboardActivity extends AppCompatActivity {
         Toast.makeText(this, "Journey stopped", Toast.LENGTH_SHORT).show();
     }
 
-    // ========== MESSAGE SENDING METHODS ==========
+    // ========== LOCATION SERVICE METHODS ==========
+
+    private void startLocationService() {
+        Intent serviceIntent = new Intent(this, LocationService.class);
+        serviceIntent.putExtra("tripId", "trip_" + System.currentTimeMillis());
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+            Log.d(TAG, "✅ LocationService started with 2-minute repeating SMS task");
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting LocationService: " + e.getMessage());
+        }
+    }
+
+    private void stopLocationService() {
+        try {
+            Intent serviceIntent = new Intent(this, LocationService.class);
+            stopService(serviceIntent);
+            Log.d(TAG, "🛑 LocationService stopped");
+        } catch (Exception e) {
+            Log.e(TAG, "Error stopping LocationService: " + e.getMessage());
+        }
+    }
+
+    // ========== PURE SMS SENDING METHODS - NO WHATSAPP ==========
 
     private void sendLocationToContacts(Location location) {
-        // ✅ FIXED: Check if contacts exist
         if (emergencyPhoneNumbers.isEmpty()) {
             Log.e(TAG, "Cannot send location: No emergency contacts selected");
             Toast.makeText(this, "No emergency contacts selected", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        String userName = sessionManager.getUserName();
-        String message = generateJourneyStartMessage(location, userName);
+        String message = generateSmsMessage(location);
+        Log.d(TAG, "Sending SMS to " + emergencyPhoneNumbers.size() + " contacts");
 
-        Log.d(TAG, "Sending location to " + emergencyPhoneNumbers.size() + " contacts");
-        Log.d(TAG, "Message: " + message);
-
-        // Send SMS to all contacts
+        // Send SMS to all contacts - COMPLETELY AUTOMATIC
         if (checkSmsPermission()) {
             sendSmsToAllContacts(message);
         } else {
             Log.d(TAG, "SMS permission not granted, requesting...");
             requestSmsPermission();
-            // Still try to send WhatsApp
         }
-
-        // Send WhatsApp to all contacts
-        sendWhatsAppToAllContacts(message);
 
         // Save to Firestore
         saveLocationUpdate(location, message);
 
-        // Show notification
-        try {
-            NotificationHelper.showJourneyStartedNotification(this, String.valueOf(emergencyPhoneNumbers.size()));
-        } catch (Exception e) {
-            Log.e(TAG, "Notification error: " + e.getMessage());
-        }
-
-        tvLastUpdate.setText("Last: " + timeFormat.format(new Date()));
-        Toast.makeText(this, "📍 Location shared with " + emergencyPhoneNumbers.size() + " contact(s)", Toast.LENGTH_SHORT).show();
+        tvLastUpdate.setText("Last SMS: " + timeFormat.format(new Date()));
+        Toast.makeText(this, "📱 SMS sent to " + emergencyPhoneNumbers.size() + " contact(s)", Toast.LENGTH_SHORT).show();
     }
 
     private void sendSmsToAllContacts(String message) {
         try {
             SmsManager smsManager = SmsManager.getDefault();
             int successCount = 0;
+
             for (String phone : emergencyPhoneNumbers) {
                 try {
-                    smsManager.sendTextMessage(phone, null, message, null, null);
-                    Log.d(TAG, "✅ SMS sent to: " + phone);
+                    // Create pending intents for delivery confirmation
+                    Intent sentIntent = new Intent("com.safetytrack.SMS_SENT");
+                    android.app.PendingIntent sentPI = android.app.PendingIntent.getBroadcast(
+                            this, 0, sentIntent, android.app.PendingIntent.FLAG_IMMUTABLE);
+
+                    Intent deliveredIntent = new Intent("com.safetytrack.SMS_DELIVERED");
+                    android.app.PendingIntent deliveredPI = android.app.PendingIntent.getBroadcast(
+                            this, 0, deliveredIntent, android.app.PendingIntent.FLAG_IMMUTABLE);
+
+                    // Send SMS automatically - NO USER INTERACTION
+                    smsManager.sendTextMessage(phone, null, message, sentPI, deliveredPI);
+                    Log.d(TAG, "✅ SMS automatically sent to: " + phone);
                     successCount++;
                 } catch (Exception e) {
                     Log.e(TAG, "❌ Failed to send SMS to " + phone + ": " + e.getMessage());
                 }
             }
             if (successCount > 0) {
-                Toast.makeText(this, "SMS sent to " + successCount + " contact(s)", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "📱 SMS sent to " + successCount + " contact(s)", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
             Log.e(TAG, "SMS Manager error: " + e.getMessage());
@@ -637,67 +654,33 @@ public class DashboardActivity extends AppCompatActivity {
         }
     }
 
-    private void sendWhatsAppToAllContacts(String message) {
-        int successCount = 0;
-        for (String phone : emergencyPhoneNumbers) {
-            if (sendViaWhatsApp(message, phone)) {
-                successCount++;
-            }
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-        if (successCount > 0) {
-            Toast.makeText(this, "WhatsApp opened for " + successCount + " contact(s)", Toast.LENGTH_SHORT).show();
-        }
+    // ========== SMS MESSAGE GENERATION ==========
+
+    private String generateSmsMessage(Location location) {
+        double lat = location.getLatitude();
+        double lng = location.getLongitude();
+        String time = timeFormat.format(new Date());
+        String mapsLink = generateGoogleMapsLink(location);
+
+        return "🚗 Journey Update:\n" +
+                "My current location: " + mapsLink + "\n" +
+                "🕒 Time: " + time + "\n" +
+                "🔋 Battery: " + getBatteryLevel() + "%\n" +
+                "Sent via SafetyTrack";
     }
-
-    private boolean sendViaWhatsApp(String message, String phoneNumber) {
-        try {
-            phoneNumber = phoneNumber.replaceAll("[^0-9+]", "");
-            if (phoneNumber.startsWith("+")) {
-                phoneNumber = phoneNumber.substring(1);
-            }
-
-            String url = "https://api.whatsapp.com/send?phone=" + phoneNumber + "&text=" + Uri.encode(message);
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setData(Uri.parse(url));
-            startActivity(intent);
-            Log.d(TAG, "✅ WhatsApp opened for: " + phoneNumber);
-            return true;
-        } catch (Exception e) {
-            Log.e(TAG, "❌ WhatsApp failed for " + phoneNumber + ": " + e.getMessage());
-            try {
-                Intent shareIntent = new Intent(Intent.ACTION_SEND);
-                shareIntent.setType("text/plain");
-                shareIntent.setPackage("com.whatsapp");
-                shareIntent.putExtra(Intent.EXTRA_TEXT, message);
-                startActivity(shareIntent);
-                Log.d(TAG, "✅ WhatsApp fallback opened for: " + phoneNumber);
-                return true;
-            } catch (Exception ex) {
-                Log.e(TAG, "❌ WhatsApp not installed");
-                Toast.makeText(this, "WhatsApp not installed", Toast.LENGTH_SHORT).show();
-                return false;
-            }
-        }
-    }
-
-    // ========== MESSAGE GENERATION ==========
 
     private String generateJourneyStartMessage(Location location, String userName) {
         double lat = location.getLatitude();
         double lng = location.getLongitude();
-        String time = new SimpleDateFormat("hh:mm a, dd MMM", Locale.getDefault()).format(new Date());
+        String time = timeFormat.format(new Date());
         String mapsLink = generateGoogleMapsLink(location);
 
         return "🚗 Journey Started\n" +
                 "I have started my journey.\n\n" +
-                "📍 Location: " + mapsLink + "\n" +
+                "📍 Current Location: " + mapsLink + "\n" +
                 "🕒 Time: " + time + "\n" +
                 "🔋 Battery: " + getBatteryLevel() + "%\n\n" +
+                "I will send SMS updates every 2 minutes.\n" +
                 "Sent via SafetyTrack";
     }
 
@@ -716,7 +699,8 @@ public class DashboardActivity extends AppCompatActivity {
                 "📍 Location: " + mapsLink + "\n" +
                 "🕒 Time: " + time + "\n" +
                 "🔋 Battery: " + getBatteryLevel() + "%\n\n" +
-                "Please call or check on them NOW!";
+                "Please call or check on them NOW!\n" +
+                "Sent via SafetyTrack";
     }
 
     // ========== UI UPDATE METHODS ==========
@@ -764,7 +748,7 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     private void updateLocationUI(Location location) {
-        tvLastUpdate.setText("Last: " + timeFormat.format(new Date()));
+        tvLastUpdate.setText("Last SMS: " + timeFormat.format(new Date()));
         updateEmergencyMessagePreview();
     }
 
@@ -791,7 +775,7 @@ public class DashboardActivity extends AppCompatActivity {
             String preview = generateJourneyStartMessage(lastLocation, userName);
             tvEmergencyMessage.setText(preview);
         } else {
-            tvEmergencyMessage.setText("Start a journey to share your location");
+            tvEmergencyMessage.setText("Start a journey to share your location via SMS");
         }
     }
 
@@ -845,14 +829,12 @@ public class DashboardActivity extends AppCompatActivity {
             requestSmsPermission();
         }
 
-        sendWhatsAppToAllContacts(emergencyMessage);
-
         btnSOS.setBackgroundTintList(ContextCompat.getColorStateList(this, R.color.white));
         new Handler().postDelayed(() -> {
             btnSOS.setBackgroundTintList(ContextCompat.getColorStateList(this, R.color.sos_red));
         }, 500);
 
-        Toast.makeText(this, "SOS sent to " + emergencyPhoneNumbers.size() + " contacts!", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "🚨 SOS sent to " + emergencyPhoneNumbers.size() + " contacts!", Toast.LENGTH_LONG).show();
 
         if (lastLocation != null) {
             saveLocationUpdate(lastLocation, emergencyMessage);
@@ -873,7 +855,7 @@ public class DashboardActivity extends AppCompatActivity {
         if (checkSmsPermission()) {
             sendSmsToAllContacts(message);
         }
-        Toast.makeText(this, "Safe arrival message sent", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "✅ Safe arrival message sent", Toast.LENGTH_SHORT).show();
     }
 
     private void sendManualLocationUpdate() {
@@ -953,24 +935,6 @@ public class DashboardActivity extends AppCompatActivity {
                 Log.e(TAG, "Failed to save location: " + error);
             }
         });
-    }
-
-    // ========== LOCATION SERVICE ==========
-
-    private void startLocationService() {
-        Intent serviceIntent = new Intent(this, LocationService.class);
-        serviceIntent.putExtra("tripId", "trip_" + System.currentTimeMillis());
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent);
-        } else {
-            startService(serviceIntent);
-        }
-    }
-
-    private void stopLocationService() {
-        Intent serviceIntent = new Intent(this, LocationService.class);
-        stopService(serviceIntent);
     }
 
     // ========== HELPER METHODS ==========

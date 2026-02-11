@@ -7,4 +7,12 @@
     <string name="send_otp">Send OTP</string>
     <string name="verify_otp">Verify OTP</string>
     <string name="reset_password">Reset Password</string>
+
+    <!-- Notification Strings -->
+    <string name="notification_channel_journey">SafetyTrack Journey</string>
+    <string name="notification_channel_description">Active journey notifications</string>
+    <string name="notification_title_journey_active">Journey Active</string>
+    <string name="notification_text_journey_active">Location sharing every 2 minutes</string>
+    <string name="notification_title_journey_ended">Journey Ended</string>
+    <string name="notification_text_journey_ended">Your journey tracking has stopped</string>
 </resources>
