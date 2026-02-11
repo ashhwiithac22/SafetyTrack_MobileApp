@@ -501,6 +501,12 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     private void startJourneyTracking() {
+        if (!checkSmsPermission()) {
+            Log.d(TAG, "SMS permission not granted, requesting...");
+            requestSmsPermission();
+            Toast.makeText(this, "Please grant SMS permission to share location", Toast.LENGTH_LONG).show();
+            return;
+        }
         isTracking = true;
         journeyStartTime = System.currentTimeMillis();
 
