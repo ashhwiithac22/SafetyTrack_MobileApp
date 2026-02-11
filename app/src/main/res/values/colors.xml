@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ========== CORE COLORS ========== -->
+    <color name="primary">#6200EE</color>
+    <color name="primary_dark">#3700B3</color>
+    <color name="primary_light">#E8DEF0</color>
+    <color name="accent">#03DAC5</color>
+
+    <!-- ========== TEXT COLORS ========== -->
+    <color name="text_primary">#DE000000</color>
+    <color name="text_secondary">#8A000000</color>
+    <color name="text_hint">#61000000</color>
+    <color name="text_white">#FFFFFF</color>
+
+    <!-- ========== BACKGROUND COLORS ========== -->
+    <color name="background">#F8F9FA</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="card_background">#FFFFFF</color>
+
+    <!-- ========== UI COLORS ========== -->
+    <color name="divider_gray">#1F000000</color>
+    <color name="dividerColor">#E0E0E0</color>
+    <color name="border">#E0E0E0</color>              <!-- ✅ ADDED -->
+    <color name="social_button">#F5F5F5</color>       <!-- ✅ ADDED -->
+
+    <!-- ========== STATUS COLORS ========== -->
+    <color name="success_green">#4CAF50</color>
+    <color name="success_green_light">#E8F5E9</color>
+    <color name="error_red">#F44336</color>
+    <color name="error_red_light">#FFEBEE</color>
+    <color name="warning_orange">#FF9800</color>
+    <color name="sos_red">#F44336</color>
+    <color name="sos_background">#F44336</color>
+
+    <!-- ========== LOGIN/REGISTER COLORS ========== -->
+    <color name="login_primary">#6200EE</color>
+    <color name="login_gradient_start">#6200EE</color>
+    <color name="login_gradient_end">#03DAC5</color>
+    <color name="register_gradient_start">#6200EE</color>
+    <color name="register_gradient_end">#03DAC5</color>
+    <color name="logo_background">#6200EE</color>
+
+    <!-- ========== BUTTON COLORS ========== -->
+    <color name="button_primary">#6200EE</color>
+    <color name="button_primary_pressed">#3700B3</color>
+
+    <!-- ========== GRAY SCALE ========== -->
+    <color name="gray_100">#F5F5F5</color>
+    <color name="gray_300">#E0E0E0</color>
+    <color name="gray_500">#9E9E9E</color>
+    <color name="gray_700">#616161</color>
+    <color name="gray_900">#212121</color>
+
+    <!-- ========== TEXT FIELD COLORS ========== -->
+    <color name="text_field_outline">#6200EE</color>
+    <color name="text_field_hint">#8A000000</color>
+    <color name="text_field_text">#DE000000</color>
+    <color name="text_field_background">#FFFFFF</color>
+
+    <!-- ========== STATUS BAR ========== -->
+    <color name="statusBarColor">#3700B3</color>
+    <color name="status_bar_color">#3700B3</color>
+
+    <!-- ========== TRANSPARENT ========== -->
+    <color name="transparent">#00000000</color>
+</resources>

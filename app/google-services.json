@@ -1,0 +1,34 @@
+{
+  "project_info": {
+    "project_number": "397763076167",
+    "project_id": "safetytrack-5f53b",
+    "storage_bucket": "safetytrack-5f53b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:397763076167:android:bd7fb78f7b4b31042f5162",
+        "android_client_info": {
+          "package_name": "com.safetytrack"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfoeWSZDUnt8VTzgVMvkSQ-fftbGstnU0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      },
+      "sha1_certificates": [
+        {
+          "certificate_hash": "24:FA:8E:C2:91:06:86:7E:24:4A:B2:4F:61:06:D4:47:7D:92:04:44"
+        }
+      ]
+    }
+  ],
+  "configuration_version": "1"
+}

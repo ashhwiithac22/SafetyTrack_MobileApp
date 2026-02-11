@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SafetyTrack</string>
+    <string name="back">Back</string>
+    <string name="forgot_password_title">Forgot Password</string>
+    <string name="back_to_login">Back to Login</string>
+    <string name="send_otp">Send OTP</string>
+    <string name="verify_otp">Verify OTP</string>
+    <string name="reset_password">Reset Password</string>
+</resources>

@@ -1,0 +1,21 @@
+# Android
+.gradle/
+.idea/
+build/
+local.properties
+captures/
+.externalNativeBuild/
+
+# Memory dump files
+*.hprof
+
+# Logs
+*.log
+
+# APK / Bundles
+*.apk
+*.aab
+
+# OS files
+.DS_Store
+Thumbs.db
