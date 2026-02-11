@@ -1,4 +1,3 @@
-//DashboardActivity.java
 package com.safetytrack;
 
 import androidx.appcompat.widget.SwitchCompat;
@@ -66,7 +65,7 @@ public class DashboardActivity extends AppCompatActivity {
     private static final int LOCATION_PERMISSION_REQUEST = 1001;
     private static final int SMS_PERMISSION_REQUEST = 1002;
     private static final int LOCATION_SETTINGS_REQUEST = 1003;
-    private static final int NOTIFICATION_PERMISSION_REQUEST = 1004; // ✅ ADDED
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 1004;
     private static final long LOCATION_UPDATE_INTERVAL = 120000;
     private static final float MIN_DISTANCE_CHANGE = 10;
 
@@ -228,7 +227,6 @@ public class DashboardActivity extends AppCompatActivity {
                 SMS_PERMISSION_REQUEST);
     }
 
-    // ✅ ADDED: Notification permission methods
     private boolean checkNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
@@ -251,7 +249,6 @@ public class DashboardActivity extends AppCompatActivity {
         if (!checkSmsPermission()) {
             // SMS permission will be requested when needed
         }
-        // ✅ ADDED: Request notification permission
         if (!checkNotificationPermission()) {
             requestNotificationPermission();
         }
@@ -276,9 +273,7 @@ public class DashboardActivity extends AppCompatActivity {
             } else {
                 Toast.makeText(this, "SMS permission is required for alerts", Toast.LENGTH_LONG).show();
             }
-        }
-        // ✅ ADDED: Handle notification permission result
-        else if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
+        } else if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Log.d(TAG, "Notification permission granted");
             }
@@ -292,8 +287,10 @@ public class DashboardActivity extends AppCompatActivity {
         tvUserName.setText("Welcome, " + userName);
     }
 
+    // ✅ FIXED: Properly loads contacts and selected state from Firestore
     private void loadEmergencyContactsFromFirestore() {
         progressBar.setVisibility(View.VISIBLE);
+        Log.d(TAG, "Loading contacts from Firestore...");
 
         firebaseHelper.loadContactsFromFirestore(new FirebaseHelper.FirebaseContactsListener() {
             @Override
@@ -301,27 +298,42 @@ public class DashboardActivity extends AppCompatActivity {
                 progressBar.setVisibility(View.GONE);
                 emergencyContacts.clear();
                 emergencyPhoneNumbers.clear();
-                emergencyContacts.addAll(contacts);
 
+                // Store ALL contacts, not just selected ones
+                emergencyContacts.addAll(contacts);
+                Log.d(TAG, "Total contacts loaded from Firestore: " + contacts.size());
+
+                // Build phone numbers list ONLY from selected contacts
+                int selectedCount = 0;
                 for (Contact contact : contacts) {
                     if (contact.isSelected()) {
+                        selectedCount++;
                         String phone = contact.getPhoneNumber();
                         if (phone != null && !phone.isEmpty()) {
                             emergencyPhoneNumbers.add(phone);
+                            Log.d(TAG, "Loaded selected contact: " + phone + " (" + contact.getName() + ")");
                         }
                     }
                 }
 
                 updateContactsUI();
                 saveContactsToPreferences();
-                Log.d(TAG, "Loaded " + emergencyPhoneNumbers.size() + " emergency contacts");
+
+                Log.d(TAG, "Loaded " + emergencyPhoneNumbers.size() + " selected emergency contacts out of " + contacts.size() + " total");
+
+                // Show contact count in UI
+                Toast.makeText(DashboardActivity.this,
+                        "Contacts: " + selectedCount + " selected", Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onError(String error) {
                 progressBar.setVisibility(View.GONE);
-                Log.e(TAG, "Error loading contacts: " + error);
+                Log.e(TAG, "Error loading contacts from Firestore: " + error);
                 loadEmergencyContactsFromPreferences();
+
+                Toast.makeText(DashboardActivity.this,
+                        "Using local contacts: " + emergencyPhoneNumbers.size(), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -346,6 +358,7 @@ public class DashboardActivity extends AppCompatActivity {
             }
         }
         updateContactsUI();
+        Log.d(TAG, "Loaded " + emergencyPhoneNumbers.size() + " contacts from preferences");
     }
 
     private void saveContactsToPreferences() {
@@ -360,11 +373,19 @@ public class DashboardActivity extends AppCompatActivity {
         }
         editor.putString("emergencyContacts", contactsBuilder.toString());
         editor.apply();
+        Log.d(TAG, "Saved " + emergencyPhoneNumbers.size() + " contacts to preferences");
     }
 
     private void updateContactsUI() {
         int selectedCount = emergencyPhoneNumbers.size();
-        tvContactsCount.setText(selectedCount == 0 ? "0 contacts" : selectedCount + " contact" + (selectedCount > 1 ? "s" : ""));
+        if (selectedCount == 0) {
+            tvContactsCount.setText("0 contacts");
+            tvContactsCount.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
+        } else {
+            tvContactsCount.setText(selectedCount + " contact" + (selectedCount > 1 ? "s" : ""));
+            tvContactsCount.setTextColor(ContextCompat.getColor(this, R.color.primary));
+        }
+        Log.d(TAG, "UI updated - Selected contacts: " + selectedCount);
     }
 
     // ========== LOCATION METHODS ==========
@@ -459,7 +480,6 @@ public class DashboardActivity extends AppCompatActivity {
         }
     }
 
-    // ✅ ADDED: Generate Google Maps link
     private String generateGoogleMapsLink(Location location) {
         return "https://maps.google.com/?q=" + location.getLatitude() + "," + location.getLongitude();
     }
@@ -478,6 +498,7 @@ public class DashboardActivity extends AppCompatActivity {
         }
 
         if (!isTracking) {
+            // ✅ FIXED: Check if contacts are selected
             if (emergencyPhoneNumbers.isEmpty()) {
                 showNoContactsDialog();
                 return;
@@ -506,6 +527,7 @@ public class DashboardActivity extends AppCompatActivity {
                 Location location = locationResult.getLastLocation();
                 if (location != null) {
                     lastLocation = location;
+                    // ✅ Send location immediately when journey starts
                     if (!emergencyPhoneNumbers.isEmpty()) {
                         sendLocationToContacts(location);
                     }
@@ -554,7 +576,9 @@ public class DashboardActivity extends AppCompatActivity {
     // ========== MESSAGE SENDING METHODS ==========
 
     private void sendLocationToContacts(Location location) {
+        // ✅ FIXED: Check if contacts exist
         if (emergencyPhoneNumbers.isEmpty()) {
+            Log.e(TAG, "Cannot send location: No emergency contacts selected");
             Toast.makeText(this, "No emergency contacts selected", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -562,16 +586,25 @@ public class DashboardActivity extends AppCompatActivity {
         String userName = sessionManager.getUserName();
         String message = generateJourneyStartMessage(location, userName);
 
+        Log.d(TAG, "Sending location to " + emergencyPhoneNumbers.size() + " contacts");
+        Log.d(TAG, "Message: " + message);
+
+        // Send SMS to all contacts
         if (checkSmsPermission()) {
             sendSmsToAllContacts(message);
         } else {
+            Log.d(TAG, "SMS permission not granted, requesting...");
             requestSmsPermission();
+            // Still try to send WhatsApp
         }
 
+        // Send WhatsApp to all contacts
         sendWhatsAppToAllContacts(message);
+
+        // Save to Firestore
         saveLocationUpdate(location, message);
 
-        // ✅ ADDED: Show notification
+        // Show notification
         try {
             NotificationHelper.showJourneyStartedNotification(this, String.valueOf(emergencyPhoneNumbers.size()));
         } catch (Exception e) {
@@ -579,19 +612,24 @@ public class DashboardActivity extends AppCompatActivity {
         }
 
         tvLastUpdate.setText("Last: " + timeFormat.format(new Date()));
-        Toast.makeText(this, "Location shared with " + emergencyPhoneNumbers.size() + " contact(s)", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "📍 Location shared with " + emergencyPhoneNumbers.size() + " contact(s)", Toast.LENGTH_SHORT).show();
     }
 
     private void sendSmsToAllContacts(String message) {
         try {
             SmsManager smsManager = SmsManager.getDefault();
+            int successCount = 0;
             for (String phone : emergencyPhoneNumbers) {
                 try {
                     smsManager.sendTextMessage(phone, null, message, null, null);
-                    Log.d(TAG, "SMS sent to: " + phone);
+                    Log.d(TAG, "✅ SMS sent to: " + phone);
+                    successCount++;
                 } catch (Exception e) {
-                    Log.e(TAG, "Failed to send SMS to " + phone + ": " + e.getMessage());
+                    Log.e(TAG, "❌ Failed to send SMS to " + phone + ": " + e.getMessage());
                 }
+            }
+            if (successCount > 0) {
+                Toast.makeText(this, "SMS sent to " + successCount + " contact(s)", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
             Log.e(TAG, "SMS Manager error: " + e.getMessage());
@@ -600,17 +638,23 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     private void sendWhatsAppToAllContacts(String message) {
+        int successCount = 0;
         for (String phone : emergencyPhoneNumbers) {
-            sendViaWhatsApp(message, phone);
+            if (sendViaWhatsApp(message, phone)) {
+                successCount++;
+            }
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
+        if (successCount > 0) {
+            Toast.makeText(this, "WhatsApp opened for " + successCount + " contact(s)", Toast.LENGTH_SHORT).show();
+        }
     }
 
-    private void sendViaWhatsApp(String message, String phoneNumber) {
+    private boolean sendViaWhatsApp(String message, String phoneNumber) {
         try {
             phoneNumber = phoneNumber.replaceAll("[^0-9+]", "");
             if (phoneNumber.startsWith("+")) {
@@ -621,17 +665,22 @@ public class DashboardActivity extends AppCompatActivity {
             Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.setData(Uri.parse(url));
             startActivity(intent);
-            Log.d(TAG, "WhatsApp opened for: " + phoneNumber);
+            Log.d(TAG, "✅ WhatsApp opened for: " + phoneNumber);
+            return true;
         } catch (Exception e) {
-            Log.e(TAG, "WhatsApp failed for " + phoneNumber + ": " + e.getMessage());
+            Log.e(TAG, "❌ WhatsApp failed for " + phoneNumber + ": " + e.getMessage());
             try {
                 Intent shareIntent = new Intent(Intent.ACTION_SEND);
                 shareIntent.setType("text/plain");
                 shareIntent.setPackage("com.whatsapp");
                 shareIntent.putExtra(Intent.EXTRA_TEXT, message);
                 startActivity(shareIntent);
+                Log.d(TAG, "✅ WhatsApp fallback opened for: " + phoneNumber);
+                return true;
             } catch (Exception ex) {
+                Log.e(TAG, "❌ WhatsApp not installed");
                 Toast.makeText(this, "WhatsApp not installed", Toast.LENGTH_SHORT).show();
+                return false;
             }
         }
     }
@@ -642,7 +691,6 @@ public class DashboardActivity extends AppCompatActivity {
         double lat = location.getLatitude();
         double lng = location.getLongitude();
         String time = new SimpleDateFormat("hh:mm a, dd MMM", Locale.getDefault()).format(new Date());
-        // ✅ UPDATED: Use generateGoogleMapsLink method
         String mapsLink = generateGoogleMapsLink(location);
 
         return "🚗 Journey Started\n" +
@@ -950,6 +998,18 @@ public class DashboardActivity extends AppCompatActivity {
         return 100;
     }
 
+    // ========== DEBUG METHODS ==========
+
+    private void debugContactState() {
+        Log.d(TAG, "=== CONTACT DEBUG ===");
+        Log.d(TAG, "Total contacts in memory: " + emergencyContacts.size());
+        Log.d(TAG, "Selected phone numbers: " + emergencyPhoneNumbers.size());
+        for (int i = 0; i < emergencyPhoneNumbers.size(); i++) {
+            Log.d(TAG, "  " + (i+1) + ". " + emergencyPhoneNumbers.get(i));
+        }
+        Log.d(TAG, "=====================");
+    }
+
     // ========== DIALOGS ==========
 
     private void showEnableGPSDialog() {
@@ -1013,6 +1073,7 @@ public class DashboardActivity extends AppCompatActivity {
         super.onResume();
         loadEmergencyContactsFromFirestore();
         updateStatusIndicators();
+        debugContactState();
 
         if (!sessionManager.isLoggedIn()) {
             startActivity(new Intent(this, LoginActivity.class));
