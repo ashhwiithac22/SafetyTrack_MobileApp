@@ -1,4 +1,3 @@
-//DashboardActivity.java
 package com.safetytrack;
 
 import androidx.appcompat.widget.SwitchCompat;
@@ -308,8 +307,13 @@ public class DashboardActivity extends AppCompatActivity {
                         selectedCount++;
                         String phone = contact.getPhoneNumber();
                         if (phone != null && !phone.isEmpty()) {
-                            emergencyPhoneNumbers.add(phone);
-                            Log.d(TAG, "Loaded selected contact: " + phone + " (" + contact.getName() + ")");
+                            // Clean and format phone number
+                            String cleanPhone = phone.replaceAll("[^0-9+]", "");
+                            if (!cleanPhone.startsWith("+")) {
+                                cleanPhone = "+91" + cleanPhone; // Default to India
+                            }
+                            emergencyPhoneNumbers.add(cleanPhone);
+                            Log.d(TAG, "Loaded selected contact: " + cleanPhone + " (" + contact.getName() + ")");
                         }
                     }
                 }
@@ -342,6 +346,9 @@ public class DashboardActivity extends AppCompatActivity {
                     if (parts.length >= 2) {
                         String phone = parts[1].replaceAll("[^0-9+]", "");
                         if (!phone.isEmpty()) {
+                            if (!phone.startsWith("+")) {
+                                phone = "+91" + phone;
+                            }
                             emergencyPhoneNumbers.add(phone);
                         }
                     }
@@ -391,16 +398,12 @@ public class DashboardActivity extends AppCompatActivity {
                 if (location != null) {
                     lastLocation = location;
                     updateLocationUI(location);
+                    updateEmergencyMessagePreview();
 
-                    if (isTracking && !emergencyPhoneNumbers.isEmpty()) {
-                        // This is for manual updates, service handles automatic 2-minute updates
-                        sendLocationToContacts(location);
-                    }
-
+                    // Update stats if journey is active
                     if (journeyStartTime > 0) {
                         updateStatsUI(location);
                     }
-                    updateEmergencyMessagePreview();
                 }
             }
         };
@@ -501,12 +504,14 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     private void startJourneyTracking() {
+        // ✅ Check SMS permission first
         if (!checkSmsPermission()) {
             Log.d(TAG, "SMS permission not granted, requesting...");
             requestSmsPermission();
             Toast.makeText(this, "Please grant SMS permission to share location", Toast.LENGTH_LONG).show();
             return;
         }
+
         isTracking = true;
         journeyStartTime = System.currentTimeMillis();
 
@@ -518,23 +523,23 @@ public class DashboardActivity extends AppCompatActivity {
         cardStatus.setStrokeColor(ContextCompat.getColorStateList(this, R.color.success_green));
         cardStatus.setStrokeWidth(2);
 
-        // Send immediate location
+        // Send immediate location (ONLY save to Firestore, NO SMS)
         getCurrentLocation(new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
                 Location location = locationResult.getLastLocation();
                 if (location != null) {
                     lastLocation = location;
-                    if (!emergencyPhoneNumbers.isEmpty()) {
-                        sendLocationToContacts(location);
-                    }
+                    // ✅ ONLY save to Firestore, don't send SMS here
+                    saveLocationUpdate(location, generateSmsMessage(location));
                     updateEmergencyMessagePreview();
+                    tvLastUpdate.setText("Last: " + timeFormat.format(new Date()));
                 }
                 fusedLocationClient.removeLocationUpdates(this);
             }
         });
 
-        // ✅ START FOREGROUND SERVICE WITH 2-MINUTE REPEATING SMS TASK
+        // ✅ START FOREGROUND SERVICE - THIS WILL HANDLE ALL SMS
         startLocationService();
 
         if (switchAutoTrack.isChecked()) {
@@ -600,64 +605,24 @@ public class DashboardActivity extends AppCompatActivity {
         }
     }
 
-    // ========== PURE SMS SENDING METHODS - NO WHATSAPP ==========
+    // ========== SMS SENDING METHODS - DISABLED, LOCATIONSERVICE HANDLES ALL ==========
+    // These methods are kept but DO NOTHING to prevent accidental SMS sending
 
     private void sendLocationToContacts(Location location) {
+        // ✅ DISABLED - LocationService handles all SMS
+        // Only update UI and save to Firestore
         if (emergencyPhoneNumbers.isEmpty()) {
-            Log.e(TAG, "Cannot send location: No emergency contacts selected");
-            Toast.makeText(this, "No emergency contacts selected", Toast.LENGTH_SHORT).show();
             return;
         }
 
         String message = generateSmsMessage(location);
-        Log.d(TAG, "Sending SMS to " + emergencyPhoneNumbers.size() + " contacts");
-
-        // Send SMS to all contacts - COMPLETELY AUTOMATIC
-        if (checkSmsPermission()) {
-            sendSmsToAllContacts(message);
-        } else {
-            Log.d(TAG, "SMS permission not granted, requesting...");
-            requestSmsPermission();
-        }
-
-        // Save to Firestore
         saveLocationUpdate(location, message);
-
-        tvLastUpdate.setText("Last SMS: " + timeFormat.format(new Date()));
-        Toast.makeText(this, "📱 SMS sent to " + emergencyPhoneNumbers.size() + " contact(s)", Toast.LENGTH_SHORT).show();
+        tvLastUpdate.setText("Last: " + timeFormat.format(new Date()));
     }
 
     private void sendSmsToAllContacts(String message) {
-        try {
-            SmsManager smsManager = SmsManager.getDefault();
-            int successCount = 0;
-
-            for (String phone : emergencyPhoneNumbers) {
-                try {
-                    // Create pending intents for delivery confirmation
-                    Intent sentIntent = new Intent("com.safetytrack.SMS_SENT");
-                    android.app.PendingIntent sentPI = android.app.PendingIntent.getBroadcast(
-                            this, 0, sentIntent, android.app.PendingIntent.FLAG_IMMUTABLE);
-
-                    Intent deliveredIntent = new Intent("com.safetytrack.SMS_DELIVERED");
-                    android.app.PendingIntent deliveredPI = android.app.PendingIntent.getBroadcast(
-                            this, 0, deliveredIntent, android.app.PendingIntent.FLAG_IMMUTABLE);
-
-                    // Send SMS automatically - NO USER INTERACTION
-                    smsManager.sendTextMessage(phone, null, message, sentPI, deliveredPI);
-                    Log.d(TAG, "✅ SMS automatically sent to: " + phone);
-                    successCount++;
-                } catch (Exception e) {
-                    Log.e(TAG, "❌ Failed to send SMS to " + phone + ": " + e.getMessage());
-                }
-            }
-            if (successCount > 0) {
-                Toast.makeText(this, "📱 SMS sent to " + successCount + " contact(s)", Toast.LENGTH_SHORT).show();
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "SMS Manager error: " + e.getMessage());
-            Toast.makeText(this, "Failed to send SMS. Please check permission.", Toast.LENGTH_LONG).show();
-        }
+        // ✅ DISABLED - LocationService handles all SMS
+        Log.d(TAG, "SMS sending disabled - LocationService handles automatic SMS");
     }
 
     // ========== SMS MESSAGE GENERATION ==========
@@ -668,11 +633,7 @@ public class DashboardActivity extends AppCompatActivity {
         String time = timeFormat.format(new Date());
         String mapsLink = generateGoogleMapsLink(location);
 
-        return "🚗 Journey Update:\n" +
-                "My current location: " + mapsLink + "\n" +
-                "🕒 Time: " + time + "\n" +
-                "🔋 Battery: " + getBatteryLevel() + "%\n" +
-                "Sent via SafetyTrack";
+        return "🚗 Journey Update: My current location " + mapsLink + " at " + time + ". Battery " + getBatteryLevel() + "%";
     }
 
     private String generateJourneyStartMessage(Location location, String userName) {
@@ -754,7 +715,7 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     private void updateLocationUI(Location location) {
-        tvLastUpdate.setText("Last SMS: " + timeFormat.format(new Date()));
+        tvLastUpdate.setText("Last: " + timeFormat.format(new Date()));
         updateEmergencyMessagePreview();
     }
 
@@ -829,8 +790,29 @@ public class DashboardActivity extends AppCompatActivity {
         String userName = sessionManager.getUserName();
         String emergencyMessage = generateEmergencyMessage(userName);
 
+        // ✅ SOS still sends SMS immediately
         if (checkSmsPermission()) {
-            sendSmsToAllContacts(emergencyMessage);
+            try {
+                SmsManager smsManager = SmsManager.getDefault();
+                for (String phone : emergencyPhoneNumbers) {
+                    try {
+                        Intent sentIntent = new Intent("com.safetytrack.SMS_SENT");
+                        android.app.PendingIntent sentPI = android.app.PendingIntent.getBroadcast(
+                                this, phone.hashCode(), sentIntent, android.app.PendingIntent.FLAG_IMMUTABLE);
+
+                        Intent deliveredIntent = new Intent("com.safetytrack.SMS_DELIVERED");
+                        android.app.PendingIntent deliveredPI = android.app.PendingIntent.getBroadcast(
+                                this, phone.hashCode(), deliveredIntent, android.app.PendingIntent.FLAG_IMMUTABLE);
+
+                        smsManager.sendTextMessage(phone, null, emergencyMessage, sentPI, deliveredPI);
+                        Log.d(TAG, "✅ SOS sent to: " + phone);
+                    } catch (Exception e) {
+                        Log.e(TAG, "❌ Failed to send SOS to " + phone + ": " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "SMS Manager error: " + e.getMessage());
+            }
         } else {
             requestSmsPermission();
         }
@@ -859,7 +841,19 @@ public class DashboardActivity extends AppCompatActivity {
                 "Sent via SafetyTrack";
 
         if (checkSmsPermission()) {
-            sendSmsToAllContacts(message);
+            try {
+                SmsManager smsManager = SmsManager.getDefault();
+                for (String phone : emergencyPhoneNumbers) {
+                    try {
+                        smsManager.sendTextMessage(phone, null, message, null, null);
+                        Log.d(TAG, "✅ Safe arrival sent to: " + phone);
+                    } catch (Exception e) {
+                        Log.e(TAG, "❌ Failed to send safe arrival to " + phone + ": " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "SMS Manager error: " + e.getMessage());
+            }
         }
         Toast.makeText(this, "✅ Safe arrival message sent", Toast.LENGTH_SHORT).show();
     }
@@ -881,7 +875,10 @@ public class DashboardActivity extends AppCompatActivity {
                 Location location = locationResult.getLastLocation();
                 if (location != null) {
                     lastLocation = location;
-                    sendLocationToContacts(location);
+                    // ✅ Manual update - save to Firestore only
+                    saveLocationUpdate(location, generateSmsMessage(location));
+                    tvLastUpdate.setText("Last: " + timeFormat.format(new Date()));
+                    Toast.makeText(DashboardActivity.this, "📍 Location saved", Toast.LENGTH_SHORT).show();
                 }
                 fusedLocationClient.removeLocationUpdates(this);
             }
@@ -898,7 +895,19 @@ public class DashboardActivity extends AppCompatActivity {
                 "Sent via SafetyTrack";
 
         if (checkSmsPermission()) {
-            sendSmsToAllContacts(message);
+            try {
+                SmsManager smsManager = SmsManager.getDefault();
+                for (String phone : emergencyPhoneNumbers) {
+                    try {
+                        smsManager.sendTextMessage(phone, null, message, null, null);
+                        Log.d(TAG, "✅ Low battery alert sent to: " + phone);
+                    } catch (Exception e) {
+                        Log.e(TAG, "❌ Failed to send low battery alert to " + phone + ": " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "SMS Manager error: " + e.getMessage());
+            }
         }
     }
 
