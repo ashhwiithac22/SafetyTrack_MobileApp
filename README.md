@@ -108,8 +108,8 @@
 # 📡 Offline Capability
 
 - GPS Location ✅ Yes
-- SMS Alerts ✅ Yes
-- WhatsApp Sharing ❌ Requires Internet
+- SMS Alerts   ✅ Yes
+
 
 ---
 
