@@ -21,8 +21,8 @@
     <!-- ========== UI COLORS ========== -->
     <color name="divider_gray">#1F000000</color>
     <color name="dividerColor">#E0E0E0</color>
-    <color name="border">#E0E0E0</color>              <!-- ✅ ADDED -->
-    <color name="social_button">#F5F5F5</color>       <!-- ✅ ADDED -->
+    <color name="border">#E0E0E0</color>
+    <color name="social_button">#F5F5F5</color>
 
     <!-- ========== STATUS COLORS ========== -->
     <color name="success_green">#4CAF50</color>
@@ -30,8 +30,8 @@
     <color name="error_red">#F44336</color>
     <color name="error_red_light">#FFEBEE</color>
     <color name="warning_orange">#FF9800</color>
-    <color name="sos_red">#F44336</color>
-    <color name="sos_background">#F44336</color>
+    <color name="sos_red">#D32F2F</color>
+    <color name="sos_background">#D32F2F</color>
 
     <!-- ========== LOGIN/REGISTER COLORS ========== -->
     <color name="login_primary">#6200EE</color>
@@ -48,6 +48,7 @@
     <!-- ========== GRAY SCALE ========== -->
     <color name="gray_100">#F5F5F5</color>
     <color name="gray_300">#E0E0E0</color>
+    <color name="gray_400">#BDBDBD</color>
     <color name="gray_500">#9E9E9E</color>
     <color name="gray_700">#616161</color>
     <color name="gray_900">#212121</color>

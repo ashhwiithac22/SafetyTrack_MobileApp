@@ -7,13 +7,13 @@
     android:background="@color/background"
     android:fitsSystemWindows="true">
 
-    <!-- Header Section -->
+    <!-- Header Section with Gradient -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="180dp"
         android:orientation="vertical"
         android:padding="20dp"
-        android:background="@color/primary">
+        android:background="@drawable/dashboard_header_gradient">
 
         <TextView
             android:id="@+id/tvUserName"
@@ -25,14 +25,14 @@
             android:textColor="@color/white"
             android:layout_marginBottom="16dp" />
 
-        <!-- Status Indicators -->
+        <!-- Status Indicators - ADD SIM CARD INDICATOR HERE -->
         <LinearLayout
             android:id="@+id/layoutIndicators"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
-            android:background="#33FFFFFF"
+            android:background="@drawable/status_indicator_background"
             android:padding="12dp"
             android:elevation="4dp">
 
@@ -48,8 +48,8 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:layout_marginEnd="6dp"
-                    android:src="@android:drawable/ic_menu_mylocation"
-                    android:tint="@color/white" />
+                    android:src="@drawable/ic_gps"
+                    app:tint="@color/white" />
 
                 <TextView
                     android:id="@+id/tvGpsStatus"
@@ -73,18 +73,29 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:layout_marginEnd="6dp"
-                    android:src="@android:drawable/ic_menu_set_as"
-                    android:tint="@color/white" />
+                    android:src="@drawable/ic_internet"
+                    app:tint="@color/white" />
 
                 <TextView
                     android:id="@+id/tvInternetStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Online"
+
                     android:textSize="13sp"
                     android:textColor="@color/white"
                     android:textStyle="bold" />
             </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvVoiceStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🎤 Voice SOS: Ready"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"
+                android:padding="8dp"
+                android:visibility="visible"/>
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -99,13 +110,39 @@
                     android:layout_height="20dp"
                     android:layout_marginEnd="6dp"
                     android:src="@drawable/ic_battery_full"
-                    android:tint="@color/white" />
+                    app:tint="@color/white" />
 
                 <TextView
                     android:id="@+id/tvBatteryStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="100%"
+                    android:textSize="13sp"
+                    android:textColor="@color/white"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 🆕 NEW: SIM CARD STATUS INDICATOR -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:gravity="center">
+
+                <ImageView
+                    android:id="@+id/ivSim"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginEnd="6dp"
+                    android:src="@drawable/ic_sim"
+                    app:tint="@color/white" />
+
+                <TextView
+                    android:id="@+id/tvSimStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="SIM"
                     android:textSize="13sp"
                     android:textColor="@color/white"
                     android:textStyle="bold" />
@@ -127,12 +164,12 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Journey Status Card - MaterialCardView -->
+            <!-- Journey Status Card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
+                app:cardCornerRadius="20dp"
                 app:cardElevation="8dp"
                 app:cardBackgroundColor="@color/white"
                 android:layout_marginBottom="16dp"
@@ -143,14 +180,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="24dp">
 
                     <TextView
                         android:id="@+id/tvStatus"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Ready"
-                        android:textSize="28sp"
+                        android:textSize="32sp"
                         android:textStyle="bold"
                         android:textColor="@color/text_primary"
                         android:layout_gravity="center_horizontal"
@@ -170,7 +207,7 @@
                         android:id="@+id/btnStartStop"
                         android:layout_width="match_parent"
                         android:layout_height="56dp"
-                        android:text="START JOURNEY"
+                        android:text="🏍️🏍️🏍️ START JOURNEY"
                         android:textSize="16sp"
                         android:textStyle="bold"
                         android:backgroundTint="@color/primary"
@@ -182,12 +219,12 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Quick Stats Card - MaterialCardView -->
+            <!-- Quick Stats Card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardStats"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
+                app:cardCornerRadius="20dp"
                 app:cardElevation="4dp"
                 app:cardBackgroundColor="@color/white"
                 android:layout_marginBottom="16dp"
@@ -199,6 +236,7 @@
                     android:orientation="horizontal"
                     android:padding="20dp">
 
+                    <!-- Active Time -->
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -219,16 +257,19 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="00:00"
-                            android:textSize="20sp"
+                            android:textSize="24sp"
                             android:textStyle="bold"
-                            android:textColor="@color/text_primary" />
+                            android:textColor="@color/text_primary"
+                            android:fontFamily="sans-serif-medium" />
                     </LinearLayout>
 
+                    <!-- Divider -->
                     <View
                         android:layout_width="1dp"
                         android:layout_height="40dp"
                         android:background="@color/divider_gray" />
 
+                    <!-- Distance -->
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -249,25 +290,29 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="0.0 km"
-                            android:textSize="20sp"
+                            android:textSize="24sp"
                             android:textStyle="bold"
-                            android:textColor="@color/text_primary" />
+                            android:textColor="@color/text_primary"
+                            android:fontFamily="sans-serif-medium" />
                     </LinearLayout>
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Emergency Contacts Card - MaterialCardView -->
+            <!-- Emergency Contacts Card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardContacts"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
+                app:cardCornerRadius="20dp"
                 app:cardElevation="4dp"
                 app:cardBackgroundColor="@color/white"
                 android:layout_marginBottom="16dp"
-                app:strokeWidth="0dp">
+                app:strokeWidth="0dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackground">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -280,7 +325,14 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:layout_marginBottom="16dp">
+                        android:layout_marginBottom="12dp">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginEnd="12dp"
+                            android:src="@drawable/ic_contacts"
+                            app:tint="@color/primary" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -293,24 +345,31 @@
 
                         <TextView
                             android:id="@+id/tvContactsCount"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0 contacts"
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:gravity="center"
+                            android:text="0"
                             android:textSize="14sp"
-                            android:textColor="@color/primary"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:background="@drawable/badge_background"
+                            android:backgroundTint="@color/primary" />
                     </LinearLayout>
 
+                    <!-- Contact Status Message -->
                     <TextView
                         android:id="@+id/tvNoContacts"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="No contacts selected"
-                        android:textSize="14sp"
+                        android:textSize="15sp"
                         android:textColor="@color/text_secondary"
-                        android:layout_gravity="center_horizontal"
-                        android:layout_marginBottom="20dp"
-                        android:visibility="visible"/>
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:layout_marginBottom="8dp"
+                        android:background="@color/gray_100"
+                        app:cornerRadius="12dp"
+                        android:visibility="visible" />
 
                     <Button
                         android:id="@+id/btnSelectContacts"
@@ -321,18 +380,19 @@
                         android:textStyle="bold"
                         android:backgroundTint="@color/primary_light"
                         android:textColor="@color/primary"
-                        app:cornerRadius="24dp" />
+                        app:cornerRadius="24dp"
+                        android:elevation="2dp" />
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Emergency Message Preview Card - MaterialCardView -->
+            <!-- Emergency Message Preview Card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardEmergency"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
+                app:cardCornerRadius="20dp"
                 app:cardElevation="4dp"
                 app:cardBackgroundColor="@color/white"
                 android:layout_marginBottom="16dp"
@@ -357,23 +417,36 @@
                         android:id="@+id/tvEmergencyMessage"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Start a journey to share your location"
+                        android:text="Start a journey to share your location via SMS"
                         android:textSize="13sp"
                         android:textColor="@color/text_secondary"
                         android:background="@color/gray_100"
                         android:padding="16dp"
                         android:gravity="center"
-                        android:lineSpacingExtra="4dp" />
+                        android:lineSpacingExtra="4dp"
+                        app:cornerRadius="12dp" />
+
+                    <!-- 🆕 NEW: SMS CHARACTER COUNTER -->
+                    <TextView
+                        android:id="@+id/tvSmsLength"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="0/160 characters"
+                        android:textSize="11sp"
+                        android:textColor="@color/text_secondary"
+                        android:gravity="end"
+                        android:layout_marginTop="4dp"
+                        android:visibility="visible"/>
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Auto Tracking Toggle Card - MaterialCardView -->
+            <!-- Auto Tracking Toggle Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
+                app:cardCornerRadius="20dp"
                 app:cardElevation="4dp"
                 app:cardBackgroundColor="@color/white"
                 android:layout_marginBottom="16dp"
@@ -433,12 +506,13 @@
                     android:layout_height="48dp"
                     android:layout_weight="1"
                     android:layout_marginEnd="8dp"
-                    android:text="Safe Arrival"
+                    android:text="🛡️🛡️🛡️ Safe Arrival"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:backgroundTint="@color/success_green"
                     android:textColor="@color/white"
-                    app:cornerRadius="24dp" />
+                    app:cornerRadius="24dp"
+                    android:elevation="2dp" />
 
                 <Button
                     android:id="@+id/btnManualUpdate"
@@ -446,12 +520,13 @@
                     android:layout_height="48dp"
                     android:layout_weight="1"
                     android:layout_marginStart="8dp"
-                    android:text="Manual Update"
+                    android:text="📍 Manual Update"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:backgroundTint="@color/primary_light"
                     android:textColor="@color/primary"
-                    app:cornerRadius="24dp" />
+                    app:cornerRadius="24dp"
+                    android:elevation="2dp" />
 
             </LinearLayout>
 
@@ -467,7 +542,8 @@
                 android:textColor="@color/primary"
                 android:layout_marginBottom="16dp"
                 app:cornerRadius="24dp"
-                android:stateListAnimator="@null" />
+                android:stateListAnimator="@null"
+                android:elevation="0dp" />
 
             <!-- Progress Bar -->
             <ProgressBar
@@ -489,25 +565,32 @@
                 android:backgroundTint="@color/error_red_light"
                 android:textColor="@color/error_red"
                 app:cornerRadius="24dp"
-                android:layout_marginBottom="24dp" />
+                android:layout_marginBottom="24dp"
+                android:elevation="2dp" />
 
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
 
-    <!-- SOS Floating Button -->
+    <!-- 🔴🔴🔴 PROMINENT RED SOS BUTTON -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnSOS"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="20dp"
-        android:src="@android:drawable/ic_dialog_alert"
-        android:backgroundTint="@color/sos_red"
+        android:layout_width="90dp"
+        android:layout_height="90dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="24dp"
+        android:src="@drawable/ic_sos"
+        android:backgroundTint="#D32F2F"
+        app:backgroundTint="#D32F2F"
         app:fabSize="normal"
-        android:contentDescription="SOS"
-        android:elevation="8dp"
+        android:contentDescription="🚨🚨🚨 SOS EMERGENCY 🚨🚨🚨"
+        android:elevation="12dp"
         android:clickable="true"
-        android:focusable="true" />
+        android:focusable="true"
+        app:rippleColor="@color/white"
+        android:scaleType="center"
+        app:borderWidth="0dp"
+        android:padding="20dp"
+        android:visibility="visible" />
 
 </LinearLayout>

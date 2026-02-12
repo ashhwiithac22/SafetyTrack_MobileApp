@@ -5,8 +5,8 @@
         android:startColor="@color/primary"
         android:endColor="@color/primary_dark"
         android:type="linear" />
-    <corners android:bottomLeftRadius="0dp"
-        android:bottomRightRadius="0dp"
+    <corners android:bottomLeftRadius="24dp"
+        android:bottomRightRadius="24dp"
         android:topLeftRadius="0dp"
         android:topRightRadius="0dp" />
 </shape>

@@ -1,3 +1,4 @@
+//LocationService.java
 package com.safetytrack.services;
 
 import android.Manifest;
@@ -17,14 +18,10 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.telephony.SmsManager;
-import android.telephony.TelephonyManager;
 import android.util.Log;
-import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -39,12 +36,8 @@ import com.safetytrack.utils.SessionManager;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 public class LocationService extends Service {
     private static final String TAG = "LocationService";
@@ -65,7 +58,7 @@ public class LocationService extends Service {
     private List<String> emergencyPhoneNumbers = new ArrayList<>();
     private SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a, dd MMM", Locale.getDefault());
     private boolean isSmsPermissionGranted = false;
-    private boolean contactsLoaded = false;
+    private boolean isRunning = false;
 
     @Override
     public void onCreate() {
@@ -96,26 +89,21 @@ public class LocationService extends Service {
             Log.d(TAG, "Received tripId: " + currentTripId);
         }
 
-        // Check SMS permission again
         checkSmsPermission();
 
         startForeground(NOTIFICATION_ID, createNotification(
-                "Journey Active",
-                "📍 Starting service..."
+                "🏍️ Journey Active",
+                "📍 Sending location updates every 2 minutes"
         ));
 
-        // ✅ CRITICAL FIX: Load contacts BEFORE starting timer
         loadEmergencyContactsAndStart();
+        isRunning = true;
 
         return START_STICKY;
     }
 
-    /**
-     * ✅ Load contacts first, then start the repeating task
-     */
     private void loadEmergencyContactsAndStart() {
         emergencyPhoneNumbers.clear();
-        contactsLoaded = false;
 
         Log.d(TAG, "Loading emergency contacts...");
 
@@ -128,37 +116,47 @@ public class LocationService extends Service {
                     if (contact.isSelected()) {
                         String phone = contact.getPhoneNumber();
                         if (phone != null && !phone.isEmpty()) {
-                            // Clean phone number
-                            String cleanPhone = phone.replaceAll("[^0-9+]", "");
-                            if (!cleanPhone.isEmpty()) {
-                                // Ensure country code
-                                if (!cleanPhone.startsWith("+")) {
-                                    cleanPhone = "+91" + cleanPhone; // India default
-                                }
-                                emergencyPhoneNumbers.add(cleanPhone);
-                                Log.d(TAG, "Added contact: " + cleanPhone);
+                            // ✅ FIXED: Remove ALL non-digit characters first
+                            String cleanPhone = phone.replaceAll("[^0-9]", "");
+
+                            // ✅ FIXED: Check if it already has country code
+                            if (cleanPhone.length() == 10) {
+                                // 10 digit number - add +91
+                                cleanPhone = "+91" + cleanPhone;
+                            } else if (cleanPhone.length() == 12 && cleanPhone.startsWith("91")) {
+                                // 12 digits starting with 91 - add + at front
+                                cleanPhone = "+" + cleanPhone;
+                            } else if (cleanPhone.length() > 12) {
+                                // Already has country code, just add + at front if missing
+                                cleanPhone = "+" + cleanPhone.replaceAll("^\\+?", "");
                             }
+
+                            // ✅ FINAL CHECK: Ensure no double +91
+                            cleanPhone = cleanPhone.replace("++", "+");
+                            cleanPhone = cleanPhone.replace("+91+91", "+91");
+
+                            emergencyPhoneNumbers.add(cleanPhone);
+                            Log.d(TAG, "✅ Added contact: " + cleanPhone);
                         }
                     }
                 }
 
-                contactsLoaded = true;
                 Log.d(TAG, "✅ Loaded " + emergencyPhoneNumbers.size() + " emergency contacts");
 
-                // ✅ NOW start the repeating task
-                startRepeatingLocationTask();
+                // ✅ Log all contacts for debugging
+                for (int i = 0; i < emergencyPhoneNumbers.size(); i++) {
+                    Log.d(TAG, "   Contact " + (i+1) + ": " + emergencyPhoneNumbers.get(i));
+                }
 
-                // Update notification
-                updateNotification("Journey Active",
+                updateNotification("🏍️ Journey Active",
                         "📍 Tracking " + emergencyPhoneNumbers.size() + " contacts");
+
+                startRepeatingLocationTask();
             }
 
             @Override
             public void onError(String error) {
                 Log.e(TAG, "❌ Failed to load contacts: " + error);
-                contactsLoaded = true; // Still mark as loaded to prevent hanging
-
-                // Try to load from preferences as fallback
                 loadContactsFromPreferences();
             }
         });
@@ -199,25 +197,35 @@ public class LocationService extends Service {
         locationRunnable = new Runnable() {
             @Override
             public void run() {
-                Log.d(TAG, "⏰ 2-minute timer triggered");
-
-                String currentTime = timeFormat.format(new Date());
-                updateNotification("Journey Active",
-                        "📍 Last SMS: " + currentTime + " - " + emergencyPhoneNumbers.size() + " contacts");
-
-                if (emergencyPhoneNumbers.isEmpty()) {
-                    Log.e(TAG, "❌ No emergency contacts available - reloading");
-                    loadEmergencyContactsAndStart();
+                if (!isRunning) {
                     return;
                 }
+
+                Log.d(TAG, "⏰ 2-minute timer triggered");
+
+                if (emergencyPhoneNumbers.isEmpty()) {
+                    Log.e(TAG, "❌ No emergency contacts available");
+                    handler.postDelayed(this, LOCATION_UPDATE_INTERVAL);
+                    return;
+                }
+
+                if (!isSmsPermissionGranted) {
+                    Log.e(TAG, "❌ SMS permission not granted");
+                    handler.postDelayed(this, LOCATION_UPDATE_INTERVAL);
+                    return;
+                }
+
+                String currentTime = timeFormat.format(new Date());
+                updateNotification("🏍️ Journey Active",
+                        "📍 Last SMS: " + currentTime);
 
                 fetchAndSendLocation();
 
                 handler.postDelayed(this, LOCATION_UPDATE_INTERVAL);
+                Log.d(TAG, "⏳ Next SMS scheduled in 2 minutes");
             }
         };
 
-        // Execute immediately
         handler.post(locationRunnable);
         Log.d(TAG, "✅ 2-minute repeating SMS task started");
     }
@@ -228,16 +236,6 @@ public class LocationService extends Service {
             return;
         }
 
-        if (emergencyPhoneNumbers.isEmpty()) {
-            Log.e(TAG, "❌ No emergency contacts available");
-            return;
-        }
-
-        if (!isSmsPermissionGranted) {
-            Log.e(TAG, "❌ SMS permission not granted");
-            return;
-        }
-
         try {
             fusedLocationClient.getLastLocation()
                     .addOnSuccessListener(location -> {
@@ -245,7 +243,7 @@ public class LocationService extends Service {
                             Log.d(TAG, "📍 Location fetched: " + location.getLatitude() + ", " + location.getLongitude());
                             sendLocationSms(location);
                         } else {
-                            Log.w(TAG, "⚠️ Location is null, requesting new location");
+                            Log.w(TAG, "⚠️ Location is null");
                             requestNewLocation();
                         }
                     })
@@ -283,18 +281,14 @@ public class LocationService extends Service {
         }
     }
 
-    /**
-     * ✅ SMS SENDING - Now with proper contact loading
-     */
     private void sendLocationSms(Location location) {
         if (emergencyPhoneNumbers.isEmpty()) {
             Log.e(TAG, "❌ No contacts to send SMS to");
             return;
         }
 
-        String message = generateSmsMessage(location);
+        String message = generateJourneyUpdateMessage(location);
         Log.d(TAG, "📱 Sending SMS to " + emergencyPhoneNumbers.size() + " contacts");
-        Log.d(TAG, "📱 Message: " + message);
 
         try {
             SmsManager smsManager = SmsManager.getDefault();
@@ -307,30 +301,18 @@ public class LocationService extends Service {
                     }
 
                     int requestCode = phone.hashCode();
-
                     Intent sentIntent = new Intent(SMS_SENT_ACTION);
                     sentIntent.putExtra("phone", phone);
-                    sentIntent.putExtra("timestamp", System.currentTimeMillis());
+                    sentIntent.putExtra("type", "JOURNEY_UPDATE");
+                    PendingIntent sentPI = PendingIntent.getBroadcast(
+                            this, requestCode, sentIntent, PendingIntent.FLAG_IMMUTABLE);
 
                     Intent deliveredIntent = new Intent(SMS_DELIVERED_ACTION);
                     deliveredIntent.putExtra("phone", phone);
-                    deliveredIntent.putExtra("timestamp", System.currentTimeMillis());
+                    deliveredIntent.putExtra("type", "JOURNEY_UPDATE");
+                    PendingIntent deliveredPI = PendingIntent.getBroadcast(
+                            this, requestCode, deliveredIntent, PendingIntent.FLAG_IMMUTABLE);
 
-                    android.app.PendingIntent sentPI = android.app.PendingIntent.getBroadcast(
-                            this,
-                            requestCode,
-                            sentIntent,
-                            android.app.PendingIntent.FLAG_IMMUTABLE
-                    );
-
-                    android.app.PendingIntent deliveredPI = android.app.PendingIntent.getBroadcast(
-                            this,
-                            requestCode,
-                            deliveredIntent,
-                            android.app.PendingIntent.FLAG_IMMUTABLE
-                    );
-
-                    // Send SMS
                     smsManager.sendTextMessage(phone, null, message, sentPI, deliveredPI);
                     Log.d(TAG, "✅ SMS sent to: " + phone);
                     successCount++;
@@ -352,16 +334,23 @@ public class LocationService extends Service {
         }
     }
 
-    private String generateSmsMessage(Location location) {
+    private String generateJourneyUpdateMessage(Location location) {
         double lat = location.getLatitude();
         double lng = location.getLongitude();
         String time = timeFormat.format(new Date());
         String mapsLink = "https://maps.google.com/?q=" + lat + "," + lng;
 
-        return "Journey Update: My current location " + mapsLink + " at " + time + ". Battery " + getBatteryLevel() + "%";
+        return "📍 Journey Update\n" +
+                "User is travelling.\n" +
+                "Live Location:\n" +
+                mapsLink + "\n" +
+                "🕒 Time: " + time + "\n" +
+                "🔋 Battery: " + getBatteryLevel() + "%\n" +
+                "Sent via SafetyTrack";
     }
 
     public void stopRepeatingTask() {
+        isRunning = false;
         if (handler != null && locationRunnable != null) {
             handler.removeCallbacks(locationRunnable);
             Log.d(TAG, "🛑 2-minute repeating SMS task stopped");
@@ -410,8 +399,9 @@ public class LocationService extends Service {
                     "SafetyTrack Journey Tracking",
                     NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("Background SMS location tracking");
+            channel.setDescription("Background SMS location tracking for active journeys");
             channel.setSound(null, null);
+            channel.setShowBadge(false);
 
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
