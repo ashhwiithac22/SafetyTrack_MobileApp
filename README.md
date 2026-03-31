@@ -60,7 +60,7 @@
 
 ---
 
-# 🏗️ Tech Stack
+# 🏗️ Tech Stacks 
 
 - Language: Java
 - IDE: Android Studio
