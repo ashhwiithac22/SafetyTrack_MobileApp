@@ -3,7 +3,7 @@
 - SafetyTrack is a real-time Android journey safety application.
 - It automatically shares live location via SMS at regular intervals.
 - It sends emergency alerts using SOS and voice-based detection.
-- Designed to enhance personal safety during travel.
+- Designed to enhance personal safety during travel in emergency situations
 
 ---
 
