@@ -44,7 +44,7 @@
 - Includes current location
 - Immediate SMS dispatch
 
-## 🎤 Voice-Based Emergency Detection
+## 🎤 Voice-Based Emergency Detection using NLP
 - Detects keywords:
   - Help
   - Danger

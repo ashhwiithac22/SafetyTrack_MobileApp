@@ -19,3 +19,11 @@ captures/
 # OS files
 .DS_Store
 Thumbs.db
+caches/
+android/
+.tmp/
+daemon/
+gradle/
+SafetyTrack_MobileApp/
+native/
+wrapper/
