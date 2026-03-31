@@ -1,4 +1,4 @@
-# 🛡️ SafetyTrack – Smart Journey Safety Application
+# 🛡️ SafetyTrack – Smart Journey Safety App using Android Application
 
 - SafetyTrack is a real-time Android journey safety application.
 - It automatically shares live location via SMS at regular intervals.
